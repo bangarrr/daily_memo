@@ -19,9 +19,6 @@ class _EditTopicFormState extends ConsumerState<EditTopicForm> {
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() {
-      print(_focusNode.hasFocus);
-    });
   }
 
   @override

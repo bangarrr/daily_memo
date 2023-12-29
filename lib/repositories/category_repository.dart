@@ -5,8 +5,19 @@ import 'package:isar/isar.dart';
 
 class CategoryRepository {
   final Isar isar;
+  final StreamController<List<Category>> _streamController = StreamController<List<Category>>.broadcast();
 
-  CategoryRepository(this.isar);
+  CategoryRepository(this.isar) {
+    isar.categorys.where().watch(fireImmediately: true).listen((categoryList) async {
+      _streamController.sink.add(categoryList);
+    });
+  }
+
+  Stream<List<Category>> get categoryStream => _streamController.stream;
+
+  void dispose() {
+    _streamController.close();
+  }
 
   FutureOr<List<Category>> searchCategories() async {
     if (!isar.isOpen) return [];

@@ -1,3 +1,4 @@
+import 'package:daily_memo/collections/category.dart';
 import 'package:daily_memo/collections/topic.dart';
 import 'package:daily_memo/providers/repository_provider.dart';
 import 'package:daily_memo/repositories/topic_repository.dart';
@@ -15,33 +16,43 @@ class TopicListScreen extends ConsumerStatefulWidget {
   ConsumerState<TopicListScreen> createState() => _TopicListScreenState();
 }
 
-class _TopicListScreenState extends ConsumerState<TopicListScreen> {
+class _TopicListScreenState extends ConsumerState<TopicListScreen> with TickerProviderStateMixin {
   final List<Topic> topics = [];
-  final List<Topic> archivedTopics = [];
+  final List<String> _categories = ['すべて'];
+  TabController? _tabController;
+  int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-
-    final topicRepository = ref.read(topicRepositoryProvider);
-    topicRepository.topicStream.listen(_refresh);
+    initialize();
   }
 
-  void _refresh(List<Topic> topics) {
-    if (!mounted) return;
+  @override
+  void dispose() {
+    super.dispose();
+    _tabController?.dispose();
+  }
 
-    setState(() {
-      this.topics
-        ..clear()
-        ..addAll(topics);
+  void initialize() {
+    searchTopics();
+    final categoryRepository = ref.read(categoryRepositoryProvider);
+    categoryRepository.categoryStream.listen((categories) {
+      setState(() {
+        _categories
+          ..clear()
+          ..add('すべて')
+          ..addAll(categories.map((category) => category.name));
+        _tabController = TabController(length: categories.length + 1, vsync: this);
+      });
     });
   }
 
-  void _refreshArchive(List<Topic> topics) {
-    if (!mounted) return;
-
+  Future<void> searchTopics({String? categoryName}) async {
+    final topicRepository = ref.read(topicRepositoryProvider);
+    final topics = await topicRepository.searchTopics(categoryName: categoryName);
     setState(() {
-      this.archivedTopics
+      this.topics
         ..clear()
         ..addAll(topics);
     });
@@ -50,45 +61,47 @@ class _TopicListScreenState extends ConsumerState<TopicListScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text('話題一覧'),
-            bottom: TabBar(
-              tabs: [
-                Tab(
-                  child: Text('有効'),
-                ),
-                Tab(
-                  child: Text('アーカイブ'),
-                ),
-              ],
-              isScrollable: false,
-            ),
-          ),
-          body: TabBarView(
-            children: [
-              _buildList(topics),
-              _buildList(archivedTopics),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton(
-            child: const Icon(Icons.add),
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (BuildContext context) => EditTopicForm(),
-              );
-            },
-          ),
-        ),
-      ),
-    );
+        child: _tabController == null
+            ? Center(
+                child: CircularProgressIndicator(),
+              )
+            : Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(color: Colors.purple),
+                    child: TabBar(
+                      controller: _tabController,
+                      isScrollable: true,
+                      tabs: _categories
+                          .map(
+                            (category) => ConstrainedBox(
+                              constraints: BoxConstraints(minWidth: 80),
+                              child: Tab(text: category),
+                            ),
+                          )
+                          .toList(),
+                      onTap: (index) async {
+                        final category = _categories.elementAt(index);
+                        await searchTopics(categoryName: category == 'すべて' ? null : category);
+                        setState(() {
+                          _currentIndex = index;
+                        });
+                      },
+                    ),
+                  ),
+                  topics.isNotEmpty
+                      ? Expanded(child: _buildList(topics, _currentIndex))
+                      : Expanded(
+                          child: Center(
+                            child: Text('話題がありません'),
+                          ),
+                        ),
+                ],
+              ));
   }
 
-  Widget _buildList(List<Topic> topics) {
+  Widget _buildList(List<Topic> topics, int index) {
     final topicRepository = ref.read(topicRepositoryProvider);
 
     return ListView.separated(
@@ -121,9 +134,13 @@ class _TopicListScreenState extends ConsumerState<TopicListScreen> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              subtitle: Text(DateFormat('yyyy-MM-dd').format(topic.updatedAt)),
-              onTap: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => TopicDetailScreen(topic: topic)));
+              subtitle: Text(DateFormat('yyyy年MM月dd日').format(topic.createdAt)),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => TopicDetailScreen(topic: topic)),
+                );
+                final category = _categories.elementAt(_currentIndex);
+                searchTopics(categoryName: category == 'すべて' ? null : category);
               },
             ),
           ),

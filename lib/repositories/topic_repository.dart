@@ -6,33 +6,20 @@ import 'package:isar/isar.dart';
 class TopicRepository {
   final Isar isar;
   final bool sync;
-  final StreamController<List<Topic>> _streamController =
-      StreamController<List<Topic>>.broadcast();
 
+  TopicRepository(this.isar, {this.sync = false});
 
-  TopicRepository(this.isar, {this.sync = false}) {
-    isar.topics
-        .filter()
-        .completedEqualTo(false)
-        .sortByUpdatedAtDesc()
-        .watch(fireImmediately: true)
-        .listen((topicList) async {
-      if (!isar.isOpen) return;
-      if (_streamController.isClosed) return;
-      _streamController.sink.add(topicList);
-    });
-  }
-
-  Stream<List<Topic>> get topicStream => _streamController.stream;
-
-  void dispose() {
-    _streamController.close();
-  }
-
-  FutureOr<List<Topic>> searchTopics() async {
+  FutureOr<List<Topic>> searchTopics({String? categoryName}) async {
     if (!isar.isOpen) return [];
 
-    final builder = isar.topics.where().sortByUpdatedAtDesc();
+    final builder = isar.topics
+        .filter()
+        .optional(
+          categoryName != null,
+          (q) => q.category(
+            (q) => q.nameEqualTo(categoryName!),
+          ),
+        );
     return await builder.findAll();
   }
 
@@ -54,17 +41,19 @@ class TopicRepository {
     });
   }
 
-  FutureOr<void> updateTopic({required Topic topic, required String text}) {
+  FutureOr<void> updateTopic({required Topic topic, required String text, required Category? category}) {
     if (!isar.isOpen) return Future<void>(() {});
 
     final now = DateTime.now();
     topic
       ..text = text
+      ..category.value = category
       ..order = 0
       ..updatedAt = now;
 
     return isar.writeTxn(() async {
       await isar.topics.put(topic);
+      await topic.category.save();
     });
   }
 

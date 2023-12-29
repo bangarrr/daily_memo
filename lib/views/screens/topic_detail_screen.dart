@@ -1,8 +1,7 @@
-import 'dart:ffi';
-
+import 'package:daily_memo/collections/category.dart';
 import 'package:daily_memo/collections/topic.dart';
 import 'package:daily_memo/providers/repository_provider.dart';
-import 'package:daily_memo/repositories/topic_repository.dart';
+import 'package:daily_memo/views/components/topic_list/category_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -18,18 +17,20 @@ class TopicDetailScreen extends ConsumerStatefulWidget {
 class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
   final _textController = TextEditingController();
   final _focusNode = FocusNode();
+  Category? _category;
 
   @override
   void initState() {
     super.initState();
+    _category = widget.topic.category.value;
 
-    final topicRepository = ref.read(topicRepositoryProvider);
+    // final topicRepository = ref.read(topicRepositoryProvider);
     _textController.text = widget.topic.text;
-    _focusNode.addListener(() async {
-      if (!_focusNode.hasFocus) {
-        await topicRepository.updateTopic(topic: widget.topic, text: _textController.text);
-      }
-    });
+    // _focusNode.addListener(() async {
+    //   if (!_focusNode.hasFocus) {
+    //     await topicRepository.updateTopic(topic: widget.topic, text: _textController.text);
+    //   }
+    // });
   }
 
   @override
@@ -59,9 +60,16 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
+      body: WillPopScope(
+        onWillPop: () async {
+          await topicRepository.updateTopic(
+            topic: widget.topic,
+            text: _textController.text,
+            category: _category,
+          );
+          return true;
+        },
+        child: SafeArea(
           child: Column(
             children: [
               Expanded(
@@ -82,12 +90,61 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                   ),
                 ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [],
-              )
+              Column(
+                children: [
+                  _buildActionRow(
+                    icon: Icons.category,
+                    text: 'カテゴリー',
+                    actionWidget: CategoryDropdown(
+                      focusNode: _focusNode,
+                      selectedCategory: _category,
+                      selectHandler: (selected) {
+                        setState(() {
+                          _category = selected;
+                        });
+                      },
+                    ),
+                  ),
+                  _buildActionRow(
+                    icon: Icons.notifications,
+                    text: '通知',
+                    actionWidget: Text('通知ウィジェット')
+                  ),
+                ],
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionRow({required IconData icon, required String text, required Widget actionWidget}) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey[200]!,
+          ),
+        ),
+      ),
+      child: Container(
+        constraints: BoxConstraints(
+          minHeight: 50,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Colors.grey[600],),
+                SizedBox(width: 8),
+                Text(text, style: TextStyle(color: Colors.grey[600]),),
+              ],
+            ),
+            actionWidget,
+          ],
         ),
       ),
     );
