@@ -1,17 +1,19 @@
 import 'package:daily_memo/collections/category.dart';
 import 'package:daily_memo/providers/repository_provider.dart';
+import 'package:daily_memo/views/components/elements/toaster.dart';
 import 'package:daily_memo/views/components/topic_list/category_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class EditTopicForm extends ConsumerStatefulWidget {
-  const EditTopicForm({Key? key}) : super(key: key);
+class CreateTopicForm extends ConsumerStatefulWidget {
+  final Future<void> Function() createdCallback;
+  const CreateTopicForm({Key? key, required this.createdCallback}) : super(key: key);
 
   @override
-  ConsumerState<EditTopicForm> createState() => _EditTopicFormState();
+  ConsumerState<CreateTopicForm> createState() => _CreateTopicFormState();
 }
 
-class _EditTopicFormState extends ConsumerState<EditTopicForm> {
+class _CreateTopicFormState extends ConsumerState<CreateTopicForm> {
   final _textController = TextEditingController();
   final _focusNode = FocusNode();
   Category? _category;
@@ -69,11 +71,19 @@ class _EditTopicFormState extends ConsumerState<EditTopicForm> {
                   focusNode: _focusNode,
                   selectedCategory: _category,
                   selectHandler: setCategory,
+                  bottom: 60,
+                  horizontalPosition: {
+                    'left': 16,
+                  },
                 ),
                 ElevatedButton.icon(
                   onPressed: () async {
                     if (_textController.text.isEmpty) return;
                     await topicRepository.addTopic(text: _textController.text, category: _category);
+
+                    _textController.clear();
+                    Toaster.show(context: context, message: '追加しました');
+                    await widget.createdCallback();
                   },
                   icon: Icon(Icons.add),
                   label: Text('追加'),

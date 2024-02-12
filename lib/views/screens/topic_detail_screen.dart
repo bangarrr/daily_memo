@@ -96,6 +96,10 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                     icon: Icons.category,
                     text: 'カテゴリー',
                     actionWidget: CategoryDropdown(
+                      bottom: 100,
+                      horizontalPosition: {
+                        'right': 16,
+                      },
                       focusNode: _focusNode,
                       selectedCategory: _category,
                       selectHandler: (selected) {

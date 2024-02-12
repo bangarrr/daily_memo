@@ -9,11 +9,12 @@ class TopicRepository {
 
   TopicRepository(this.isar, {this.sync = false});
 
-  FutureOr<List<Topic>> searchTopics({String? categoryName}) async {
+  FutureOr<List<Topic>> searchTopics({String? categoryName, bool completed = false}) async {
     if (!isar.isOpen) return [];
 
     final builder = isar.topics
         .filter()
+        .completedEqualTo(completed)
         .optional(
           categoryName != null,
           (q) => q.category(
@@ -57,10 +58,10 @@ class TopicRepository {
     });
   }
 
-  FutureOr<void> completeTopic(Topic topic) async {
+  FutureOr<void> updateTopicStatus(Topic topic, bool status) async {
     if (!isar.isOpen) return Future<void>(() {});
 
-    topic..completed = true;
+    topic..completed = status;
     return isar.writeTxn(() async => await isar.topics.put(topic));
   }
 

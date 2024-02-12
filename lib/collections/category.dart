@@ -6,4 +6,5 @@ part 'category.g.dart';
 class Category {
   Id id = Isar.autoIncrement;
   late String name;
+  late int order;
 }
